@@ -1,0 +1,5 @@
+[co2forumm]
+ 82.165.169.240
+
+[all:vars]
+ ansible_python_interpreter=/usr/bin/python3

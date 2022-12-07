@@ -1,0 +1,16 @@
+#check inventory:
+ansible-inventory --list -y
+#testing connection
+ansible all -m ping -u root --ask-pass
+#running ad-hoc commands;
+ansible all -a "df -h" -u root
+#execute ansible modules:
+ansible all -m apt -a "name=vim state=latest" -u root
+#specify multiple hosts:
+ansible server1:server2 -m ping -u root
+#generate & send ssh keys:
+ssh-keygen
+sh-copy-id ric@192.168.0.1
+#liste de tous les hosts:
+ansible all --list-hosts
+#
