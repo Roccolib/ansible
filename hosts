@@ -1,5 +1,5 @@
 [co2forumm]
- 82.165.169.240
+ 82.165.169.240 ansible_user=root
 
 [all:vars]
  ansible_python_interpreter=/usr/bin/python3
