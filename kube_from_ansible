@@ -1,112 +1,118 @@
 - hosts: all
- become: yes
- tasks:
- - name: create the 'ric' user
- user: name=ric append=yes state=present createhome=yes shell=/bin/bash
+  become: yes
+  tasks:
+  - name: create the 'ric' user
+    user: name=ric append=yes state=present createhome=yes shell=/bin/bash groups=sudo append=yes
  
- - name: allow 'ric' to have passwordless sudo
- lineinfile:
-  dest: /etc/sudoers
-  line: 'ric ALL=(ALL) NOPASSWD: ALL'
-  validate: 'visudo -cf %s'
+  - name: allow 'ric' to have passwordless sudo
+    lineinfile:
+      dest: /etc/sudoers
+      line: 'ric ALL=(ALL) NOPASSWD: ALL'
+      validate: 'visudo -cf %s'
  
- - name: set up authorized keys for the ric user
- authorized_key: user=ric key="{{item}}"
- with_file:
-  - ~/.ssh/id_rsa.pub
-  
+  - name: set up authorized keys for the ric user
+    authorized_key: user=ric key="{{item}}"
+    with_file:
+      - ~/.ssh/id_rsa.pub
+
 ---
+
 - hosts: all
+  become: yes
+  tasks:
+  - name: install Docker
+    apt:
+      name: docker.io
+      state: present
+      update_cache: true
+ 
+  - name: install APT Transport HTTPS
+    apt:
+      name: apt-transport-https
+      state: present
+ 
+  - name: add Kubernetes apt-key
+    apt_key:
+      url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+      state: present
+ 
+  - name: add Kubernetes' APT repository
+    apt_repository:
+      repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
+      state: present
+      filename: 'kubernetes'
+ 
+  - name: install kubelet
+    apt:
+      name: kubelet
+      state: present
+      update_cache: true
+ 
+  - name: install kubeadm
+    apt:
+      name: kubeadm
+      state: present
+   - pause: seconds=30
+--- 
+- hosts: master
  become: yes
  tasks:
- - name: install Docker
- apt:
-  name: docker.io
-  state: present
-  update_cache: true
- 
- - name: install APT Transport HTTPS
- apt:
-  name: apt-transport-https
-  state: present
- 
- - name: add Kubernetes apt-key
- apt_key:
-  url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
-  state: present
- 
- - name: add Kubernetes' APT repository
- apt_repository:
- repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
- state: present
- filename: 'kubernetes'
- 
- - name: install kubelet
- apt:
-  name: kubelet
-  state: present
-  update_cache: true
- 
- - name: install kubeadm
- apt:
-  name: kubeadm
-  state: present
- 
- - hosts: master
- become: yes
- tasks:
- - name: install kubectl
+  - name: install kubectl
  apt:
   name: kubectl
   state: present
 
 ---
 - hosts: master
- become: yes
- tasks:
- - name: remove swap
- shell: "swapoff -a"
+  become: yes
+  tasks:
+  - name: remove swap
+    shell: "swapoff -a"
  
- - name: initialize the cluster
- shell: kubeadm init --pod-network-cidr=10.244.0.0/16 >> cluster_initialized.txt
- args:
-  chdir: $HOME
-  creates: cluster_initialized.txt
+  - name: initialize the cluster
+    shell: kubeadm init --pod-network-cidr=10.244.0.0/16 >> cluster_initialized.txt
+    args:
+      chdir: $HOME
+      creates: cluster_initialized.txt
  
- - name: create .kube directory
- become: yes
- become_user: ric
- file:
-  path: $HOME/.kube
-  state: directory
-  mode: 0755
+  - name: create .kube directory
+    become: yes
+    become_user: rico
+    file:
+      path: $HOME/.kube
+      state: directory
+      mode: 0755
  
- - name: copy admin.conf to user's kube config
- copy:
-  src: /etc/kubernetes/admin.conf
-  dest: /home/ric/.kube/config
-  remote_src: yes
-  owner: ric
+  - name: copy admin.conf to user's kube config
+    copy:
+      src: /etc/kubernetes/admin.conf
+      dest: /home/ric/.kube/config
+      remote_src: yes
+      owner: ric
  
- - name: install Pod network
- become: yes
- become_user: ric
- shell: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml >> pod_network_setup.txt
- args:
-  chdir: $HOME
-  creates: pod_network_setup.txt
+  - name: install Pod network
+    become: yes
+    become_user: rico
+    shell: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml >> pod_network_setup.txt
+    args:
+      chdir: $HOME
+      creates: pod_network_setup.txt
 ---
- - name: make master node workable
+- hosts: master
+  - name: make master node workable
 
 
 ---
- - name: install kafka et zookeeper
- become: yes
- become user: ric
- shell: kubectl apply -f kafka.yaml
+- hosts: master
+  - name: install kafka et zookeeper
+    become: yes
+    become user: rico
+    shell: kubectl apply -f kafka.yaml
 
 ---
- - name: install pythonfiles
+- hosts: master
+  - name: install pythonfiles
 
 ---
-- name: install ingress controller and metallb
+- hosts: master
+  - name: install ingress controller and metallb

@@ -1,0 +1,88 @@
+- hosts: all
+  become: yes
+  tasks:
+  - name: create the 'ric' user
+    user: name=ric append=yes state=present createhome=yes shell=/bin/bash groups=sudo append=yes
+
+  - name: allow 'ric' to have passwordless sudo
+    lineinfile:
+      dest: /etc/sudoers
+      line: 'ric ALL=(ALL) NOPASSWD: ALL'
+      validate: 'visudo -cf %s'
+
+  - name: set up authorized keys for the ric user
+    authorized_key: user=ric key="{{item}}"
+    with_file:
+      - /home/ric/.ssh/id_rsa.pub
+
+- hosts: all
+  become: yes
+  tasks:
+  - name: Add docker signing key (new GPG method)
+    get_url:
+      url: https://download.docker.com/linux/ubuntu/gpg
+      dest: /etc/apt/keyrings/docker.asc
+      mode: '0644'
+      force: true
+  - name: Add docker repository
+    apt_repository:
+      repo: deb [signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu jammy stable
+      state: present
+
+- hosts: all
+  become: yes
+  tasks:
+  - name: install APT Transport HTTPS
+    apt:
+      name: apt-transport-https
+      state: present
+
+  - name: add Kubernetes apt-key
+    apt_key:
+      url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+      state: present
+
+  - name: add 'kubernetes' APT repository
+    apt_repository:
+      repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
+      state: present
+      filename: 'kubernetes'
+
+  - name: install kubelet
+    apt:
+      name: kubelet
+      state: present
+      update_cache: true
+  - name: install kubeadm
+    apt:
+      name: kubeadm
+      state: present
+  - pause: seconds=5
+
+- hosts: all
+  become: yes
+  tasks:
+
+# Create a test namespace on the cluster without any manifest fies. This is an added advantage on ansible.
+  - name: "Create a k8s namespace"
+    k8s:
+      name: co2forumm
+      api_version: v1
+      kind: Namespace
+      state: present
+# Copying the Pod.yaml and deployment.yaml in the remote node.
+  - name: "copying file with playbook"
+    copy:
+      src: home/ric/sources/kafka2/zookeeper.yaml
+      dest: /tmp/zookeeper.yaml
+  - name: copying file with playbook
+    copy:
+      src: home/ric/sources/kafka2/kafka.yaml
+      dest: /tmp/kafka.yaml
+# Creating a Kubernetes pod in test using file stored on local.
+  - name: "Create a pod"
+    k8s:
+      state: present
+      namespace: co2forumm
+      src: /tmp/zookeeper.yaml
+

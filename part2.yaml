@@ -1,0 +1,26 @@
+- hosts: all
+  become: yes
+  tasks:
+
+# Create a test namespace on the cluster without any manifest fies. This is an added advantage on ansible.
+  - name: "Create a k8s namespace"
+    k8s:
+      name: co2forumm
+      api_version: v1
+      kind: Namespace
+      state: present
+# Copying the Pod.yaml and deployment.yaml in the remote node.
+  - name: "copying file with playbook"
+    copy:
+      src: home/ric/sources/kafka2/zookeeper.yaml
+      dest: /tmp/zookeeper.yaml
+  - name: copying file with playbook
+    copy:
+      src: home/ric/sources/kafka2/kafka.yaml
+      dest: /tmp/kafka.yaml
+# Creating a Kubernetes pod in test using file stored on local.
+  - name: "Create a pod"
+    k8s:
+      state: present
+      namespace: co2forumm
+      src: /tmp/zookeeper.yaml
