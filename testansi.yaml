@@ -1,0 +1,27 @@
+- hosts: co2forumm
+   
+  tasks:
+
+  
+  - name: create the 'rican' user
+    user: name=rican append=yes state=present createhome=yes shell=/bin/bash groups=sudo append=yes 
+    
+  - name: allow 'rican' to have passwordless sudo
+    lineinfile:
+      dest: /etc/sudoers
+      line: "rican ALL=(ALL) NOPASSWD: ALL"
+      validate: 'visudo -cf %s'
+
+  - name: set up authorized keys for the rican user
+    become: yes
+    authorized_key: user=rican key="{{item}}"
+    with_file:
+      - ~/.ssh/id_rsa.pub
+
+  - name: create ansitest directory
+    become: yes
+    become_user: rican
+    file:
+      path: $HOME/ansitest
+      state: directory
+      mode: 0755
