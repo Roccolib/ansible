@@ -32,58 +32,95 @@
 
 - hosts: all
   tasks:
-  - name: create a new directory to add pub docker key
-    become: true
-    become_user: root
-    file:
-      path: /etc/apt/keyrings
-      state: directory
-      mode: 0755
-  - name: Add docker signing key (new GPG method)
-    get_url:
-      url: https://download.docker.com/linux/ubuntu/gpg
-      dest: /etc/apt/keyrings/docker.gpg
-      mode: '0644'
-      force: true
-  - name: Add docker repository
-    apt_repository:
-      repo: deb [signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg
-      state: present
-
-- hosts: all
-  become: yes
-  tasks:
-  - name: install APT Transport HTTPS
+  - name: Install packages that allow apt to be used over HTTPS
     apt:
-      name: apt-transport-https
+      name: "{{ packages }}"
+      state: present
+      update_cache: yes
+    vars:
+      packages:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg-agent
+      - software-properties-common
+
+  - name: Add an apt signing key for Docker
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
       state: present
 
-  - name: add Kubernetes apt-key
+  - name: Add apt repository for stable version
+    apt_repository:
+      repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable
+      state: present
+
+  - name: Install docker and its dependecies
+    apt: 
+      name: "{{ packages }}"
+      state: present
+      update_cache: yes
+    vars:
+      packages:
+      - docker-ce 
+      - docker-ce-cli 
+      - containerd.io
+        #    notify:
+        #      - docker status
+
+  - name: Add ric to docker group
+    user:
+      name: ric
+      group: docker
+          
+
+  - name: Remove swapfile from /etc/fstab
+    mount:
+      name: "{{ item }}"
+      fstype: swap
+      state: absent
+    with_items:
+      - swap
+      - none
+
+  - name: Disable swap
+    command: swapoff -a
+    when: ansible_swaptotal_mb > 0
+
+  - name: Add an apt signing key for Kubernetes
     apt_key:
       url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
       state: present
 
-  - name: add 'kubernetes' APT repository
-    become: true
-    become_user: root
+  - name: Adding apt repository for Kubernetes
     apt_repository:
-      repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
+      repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
       state: present
-      filename: 'kubernetes'
+      filename: kubernetes.list
 
-  - name: install kubelet
-    apt:
+  - name: Install Kubernetes binaries
+    apt: 
+      name: "{{ packages }}"
+      state: present
+      update_cache: yes
+    vars:
+      packages:
+        - kubernetes-cni=0.6.0-00
+        - kubelet=1.13.1-00
+        - kubeadm=1.13.1-00
+        - kubectl=1.13.1-00
+
+          #  - name: Configure node ip
+          #    lineinfile:
+          #      path: /etc/default/kubelet
+          #      line: KUBELET_EXTRA_ARGS=--node-ip={{ 82.165.169.240 }}
+          #      create: yes 
+
+  - name: Restart kubelet
+    service:
       name: kubelet
-      state: present
-      update_cache: true
-      become_user: ric
-      become: true
-
-  - name: install kubeadm
-    apt:
-      name: kubeadm
-      state: present
-      become_user: ric
-      become: true
+      daemon_reload: yes
+      state: restarted
+  
 
   - pause: seconds=5

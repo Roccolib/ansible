@@ -1,0 +1,39 @@
+- hosts: all
+  become: yes
+  tasks:
+  - name: Initialize the Kubernetes cluster using kubeadm
+    command: kubeadm init --node-name localhost --pod-network-cidr=192.168.0.0/16
+ #    command: kubeadm init --apiserver-advertise-address="192.168.50.10" --apiserver-cert-extra-sans="192.168.50.10"  --node-name localhost --pod-network-cidr=192.168.0.0/16
+
+  - name: Setup kubeconfig for ric user
+    command: "{{ item }}"
+    with_items:
+     - mkdir -p /home/ric/.kube
+     - cp -i /etc/kubernetes/admin.conf /home/ric/.kube/config
+     - chown ric:ric /home/ric/.kube/config
+
+  - name: Install calico pod network
+    become: false
+    command: kubectl create -f https://docs.projectcalico.org/v3.4/getting-started/kubernetes/installation/hosted/calico.yaml
+
+  - name: Generate join command
+    command: kubeadm token create --print-join-command
+    register: join_command
+
+  - name: Copy join command to local file
+    local_action: copy content="{{ join_command.stdout_lines[0] }}" dest="./join-command"
+
+    #  - name: Add kubectl alias for ric user
+    #    lineinfile:
+    #      path=/home/ric/.profile
+    #      line="alias k=kubectl'pub serve --hostname=82.165.169.240'"
+    #      owner=ric
+    #      regexp='^alias k=kubectl'pub serve --hostname=82.165.169.240'$'
+    #      state=present
+    #      insertafter=EOF
+    #      create=True
+
+  - name: Source .profile
+    shell: "source /home/ric/.profile"
+    args:
+      executable: /bin/bash
