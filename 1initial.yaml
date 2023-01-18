@@ -1,0 +1,27 @@
+- hosts: 'workers, master'
+  become: yes
+
+  tasks:
+    - name: create the ric user account
+      user: name=ric append=yes state=present createhome=yes shell=/bin/bash groups=sudo
+
+    - name: allow 'ric' to use sudo without needing a password
+      lineinfile:
+        dest: /etc/sudoers
+        line: 'ric ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+
+    - name: set up authorized keys for the kube user
+      authorized_key: user=ric key="{{item}}"
+      with_file:
+        - ~/.ssh/id_rsa.pub
+
+    - name: Add serve alias for ric user
+      lineinfile:
+        path=/home/ric/.profile
+        line="alias k=kubectl"
+        owner=ric
+        regexp='^alias k=kubectl$'
+        state=present
+        insertafter=EOF
+        create=True

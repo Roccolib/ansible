@@ -1,0 +1,19 @@
+- hosts: all #'workers, master'
+  become: yes
+
+  tasks:
+    - name: de-taint kubernetes master node for dashboard install
+      shell: export KUBECONFIG=/etc/kubernetes/admin.conf && kubectl taint nodes --all node-role.kubernetes.io/master-
+      ignore_errors: yes
+      register: out
+
+    - debug: var=out.stdout_lines
+
+    - name: Remove taint from "localhost".
+      kubernetes.core.k8s_taint:
+        state: absent
+        name: localhost
+        taints:
+        - effect: NoSchedule
+          key: "node-role.kubernetes.io/master"
+
