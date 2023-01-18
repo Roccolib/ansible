@@ -1,5 +1,29 @@
-
-
-
+Instalation de base:
+# effacer l'historique d'installation de la machine:
+rm /home/ric/.ssh/known_hosts
 export ANSIBLE_HOST_KEY_CHECKING=False
+# creation utilisateur ric et ses droits:
+ansible-playbook 1initial.yaml --user=root --ask-pass
+# installation de Kubernetes et son CRI:
+ansible-playbook 2kube.yaml
+# initialisation de Kubernetes, installation du CNI et preparation donnees pour appairage des nodes worker: 
+ansible-playbook 3initkub.yaml
+# retrait restrictions sur node controle-plane si node unique dans cluster:
+ansible-playbook 4removetaint.yaml
 
+Verifications:
+# test de la disponibilite du master node:
+k describe node localhost | grep Taints
+#liste des pods:
+k get pods
+#liste des nodes:
+k get nodes
+# liste des pods system:
+k get -nkube-system pods
+# liste des deployments system:
+k get -nkube-system deploy
+# liste de tous les elements du namespace kube-system:
+k get -nkube-system all
+
+Installation du monitoring:
+#
