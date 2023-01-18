@@ -1,3 +1,6 @@
+# verification du fonctionnement de Ansible:
+ansible all -m ping
+
 Instalation de base:
 # effacer l'historique d'installation de la machine:
 rm /home/ric/.ssh/known_hosts
